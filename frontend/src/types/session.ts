@@ -588,6 +588,7 @@ export interface CoachChat {
   providerMode: "configured" | "external";
   activeConfigId: string | null;
   configs: AiConfig[];
+  externalPrompt?: string | null;
 }
 
 export interface CoachChatReply {

@@ -25,6 +25,7 @@ export function useCoachChat(enabled: boolean) {
     queryFn: fetchCoachChat,
     enabled: enabled && !!activeTenantId,
     staleTime: 1000 * 60 * 5,
+    refetchInterval: (query) => query.state.data?.chatPending ? 2000 : false,
   });
 }
 

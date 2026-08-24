@@ -189,6 +189,7 @@ export function getDb() {
   ensureColumn("tenant_settings", "chat_context_hash", "chat_context_hash TEXT");
   ensureColumn("tenant_settings", "chat_instructions", "chat_instructions TEXT");
   ensureColumn("tenant_settings", "chat_external", "chat_external INTEGER NOT NULL DEFAULT 0");
+  ensureColumn("tenant_settings", "chat_external_session_ids", "chat_external_session_ids TEXT");
   ensureColumn("ai_logs", "input_tokens", "input_tokens INTEGER");
   ensureColumn("ai_logs", "output_tokens", "output_tokens INTEGER");
   ensureColumn("ai_logs", "cost", "cost REAL");

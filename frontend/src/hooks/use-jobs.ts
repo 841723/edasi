@@ -11,8 +11,8 @@ export function useJobs(active = false) {
     queryKey: [...jobsKey(activeTenantId), active],
     queryFn: () => fetchJobs(active),
     enabled: Boolean(activeTenantId),
-    refetchInterval: false,
-    staleTime: 1000 * 60 * 5,
+    refetchInterval: (query) => query.state.data?.some((job) => job.status === "pending" || job.status === "running") ? 2000 : false,
+    staleTime: 1000,
   });
 }
 

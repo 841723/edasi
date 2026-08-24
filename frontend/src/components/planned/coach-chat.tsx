@@ -133,7 +133,7 @@ export function CoachChat({ selectedSessions }: CoachChatProps) {
   }
 
   async function copyPrompt() {
-    const prompt = sendMutation.data?.prompt;
+    const prompt = sendMutation.data?.prompt ?? data?.externalPrompt;
     if (!prompt) return;
     await navigator.clipboard.writeText(prompt);
     toast({ type: "success", title: "Prompt copiado" });
@@ -329,7 +329,7 @@ export function CoachChat({ selectedSessions }: CoachChatProps) {
 
          {canChat ? (
            <div className="border-t border-dark-400 p-3 sm:p-4">
-             {data?.providerMode === "external" && sendMutation.data?.external && (
+             {data?.providerMode === "external" && data.chatPending && (sendMutation.data?.external || data.externalPrompt) && (
                <div className="mb-3 rounded-xl border border-accent/30 bg-accent/10 p-3 text-xs text-gray-300">
                  <p className="mb-2 font-medium text-accent-light">La IA externa está esperando tu respuesta</p>
                  <div className="flex flex-wrap gap-2">

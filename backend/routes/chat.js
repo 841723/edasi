@@ -7,6 +7,7 @@ import {
   updateChatResponseId,
   updateChatInstructions,
   setChatExternal,
+  setChatExternalSessionIds,
   deleteChatMessages,
   recoverStaleChat,
 } from "../lib/coach-chat.js";
@@ -21,6 +22,16 @@ export function register(router) {
     recoverStaleChat(c.tenantId);
     const config = getDefaultAiConfig(c.tenantId, false);
     const state = getChatState(c.tenantId);
+    const messages = listChatMessages();
+    const lastUserMessage = [...messages].reverse().find((message) => message.role === "user");
+    let externalPrompt = null;
+    if (state.chatPending && state.chatExternal && lastUserMessage) {
+      try {
+        externalPrompt = buildFullChatPrompt(lastUserMessage.content, { sessionIds: state.chatExternalSessionIds });
+      } catch {
+        externalPrompt = buildFullChatPrompt(lastUserMessage.content);
+      }
+    }
     return sendJson(c.res, 200, {
       canChat: Boolean(config) || state.chatExternal,
       chatPending: state.chatPending,
@@ -28,12 +39,14 @@ export function register(router) {
       providerMode: state.chatExternal ? "external" : "configured",
       activeConfigId: config?.id ?? null,
       configs: listAiConfigs(c.tenantId),
-      messages: listChatMessages(),
+      externalPrompt,
+      messages,
     });
   });
 
   router.put("/api/chat/provider", async (c) => {
     if (!canWrite(c.membership)) return sendJson(c.res, 403, { error: "No tienes permisos para configurar el proveedor" });
+    if (getChatState(c.tenantId).chatPending) return sendJson(c.res, 409, { error: "No puedes cambiar el proveedor mientras el chat está respondiendo" });
     const body = await readBody(c.req);
     if (body?.mode === "external") {
       setChatExternal(c.tenantId, true);
@@ -102,6 +115,7 @@ export function register(router) {
       const prompt = buildFullChatPrompt(message, { sessionIds: body?.sessionIds ?? [] });
       addChatMessage("user", message);
       setChatPending(c.tenantId, true);
+      setChatExternalSessionIds(c.tenantId, JSON.stringify(selectedSessions.map((item) => item.id)));
       return sendJson(c.res, 200, { pending: true, external: true, prompt });
     }
 
@@ -145,9 +159,10 @@ export function register(router) {
   router.post("/api/chat/import", async (c) => {
     if (!canWrite(c.membership)) return sendJson(c.res, 403, { error: "No tienes permisos para esta acción" });
     const body = await readBody(c.req);
-    if (!getChatState(c.tenantId).chatPending) return sendJson(c.res, 409, { error: "No hay una respuesta externa pendiente" });
+    const state = getChatState(c.tenantId);
+    if (!state.chatPending || !state.chatExternal) return sendJson(c.res, 409, { error: "No hay una respuesta externa pendiente" });
     let selected;
-    try { selected = getSelectedCompletedSessions(c.tenantId, body?.sessionIds ?? []); const parsed = parseChatResponse(String(body?.response ?? body?.text ?? "")); const result = applyChatResponse(c.tenantId, parsed); markSessionsAnalyzed(c.tenantId, selected, { analysis: result.reply, profileChange: parsed.profile_change ?? "" }, result.profileVersionId); setChatPending(c.tenantId, false); return sendJson(c.res, 200, { ...result, parsed }); }
+    try { selected = getSelectedCompletedSessions(c.tenantId, body?.sessionIds ?? state.chatExternalSessionIds ?? []); const parsed = parseChatResponse(String(body?.response ?? body?.text ?? "")); const result = applyChatResponse(c.tenantId, parsed); markSessionsAnalyzed(c.tenantId, selected, { analysis: result.reply, profileChange: parsed.profile_change ?? "" }, result.profileVersionId); setChatPending(c.tenantId, false); setChatExternalSessionIds(c.tenantId, null); return sendJson(c.res, 200, { ...result, parsed }); }
     catch (error) { return sendJson(c.res, 400, { error: error.message }); }
   });
 
@@ -161,6 +176,7 @@ export function register(router) {
     // en vuelo, añadirá su respuesta al final sin volver a bloquear.
     setChatPending(c.tenantId, false);
     updateChatResponseId(c.tenantId, null);
+    setChatExternalSessionIds(c.tenantId, null);
     return sendJson(c.res, 200, { cancelled: true });
   });
 }

@@ -77,15 +77,21 @@ export function deleteChatMessages(tenantId, ids) {
 export function getChatState(tenantId = getTenantId()) {
   const row = getDb()
     .prepare(
-      "SELECT chat_pending, chat_response_id, chat_context_hash, chat_instructions, chat_external FROM tenant_settings WHERE tenant_id = ?"
+      "SELECT chat_pending, chat_response_id, chat_context_hash, chat_instructions, chat_external, chat_external_session_ids FROM tenant_settings WHERE tenant_id = ?"
     )
     .get(tenantId);
+  let chatExternalSessionIds = [];
+  try {
+    const parsed = row?.chat_external_session_ids ? JSON.parse(row.chat_external_session_ids) : [];
+    if (Array.isArray(parsed)) chatExternalSessionIds = parsed.filter((id) => typeof id === "string");
+  } catch { /* datos antiguos o corruptos: no bloquear el chat */ }
   return {
     chatPending: Boolean(row?.chat_pending),
     chatResponseId: row?.chat_response_id ?? null,
     chatContextHash: row?.chat_context_hash ?? null,
     chatInstructions: row?.chat_instructions ?? "",
     chatExternal: Boolean(row?.chat_external),
+    chatExternalSessionIds,
   };
 }
 
@@ -107,6 +113,7 @@ export const updateChatResponseId = upsertSetting("chat_response_id");
 export const updateChatContextHash = upsertSetting("chat_context_hash");
 export const updateChatInstructions = upsertSetting("chat_instructions");
 export const setChatExternal = upsertSetting("chat_external");
+export const setChatExternalSessionIds = upsertSetting("chat_external_session_ids");
 
 // Libera un chat atascado en "escribiendo" cuando no hay mensaje reciente y
 // devuelve 1 (o 0 si el chat sigue pendiente de forma legítima).

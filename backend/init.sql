@@ -135,7 +135,8 @@ CREATE TABLE IF NOT EXISTS tenant_settings (
   chat_response_id TEXT,
   chat_context_hash TEXT,
   chat_instructions TEXT,
-  chat_external INTEGER NOT NULL DEFAULT 0
+  chat_external INTEGER NOT NULL DEFAULT 0,
+  chat_external_session_ids TEXT
 );
 
 CREATE TABLE IF NOT EXISTS auth_sessions (
