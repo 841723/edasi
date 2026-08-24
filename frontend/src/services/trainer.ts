@@ -10,8 +10,20 @@ export function fetchCoachChat(): Promise<CoachChat> {
   return get("/chat");
 }
 
-export function sendCoachChat(message: string): Promise<CoachChatReply> {
-  return send("/chat", "POST", { message });
+export function sendCoachChat(message: string, sessionIds: string[] = []): Promise<CoachChatReply> {
+  return send("/chat", "POST", { message, sessionIds });
+}
+
+export function setCoachProvider(mode: "configured" | "external", configId?: string): Promise<{ providerMode: string; activeConfigId: string | null }> {
+  return send("/chat/provider", "PUT", { mode, configId });
+}
+
+export function fetchCoachPrompt(message: string, sessionIds: string[] = []): Promise<{ prompt: string }> {
+  return send("/chat/prompt", "POST", { message, sessionIds });
+}
+
+export function importCoachResponse(response: string, sessionIds: string[] = []): Promise<Record<string, unknown>> {
+  return send("/chat/import", "POST", { response, sessionIds });
 }
 
 export function cancelCoachChat(): Promise<{ cancelled: boolean }> {

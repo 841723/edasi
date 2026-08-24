@@ -5,6 +5,8 @@ import {
   cancelCoachChat,
   updateCoachChatInstructions,
   deleteCoachChatMessages,
+  setCoachProvider,
+  importCoachResponse,
 } from "@/services/trainer";
 import { useAuth } from "@/components/auth/auth-context";
 import { useToast } from "@/components/ui/toast";
@@ -14,7 +16,7 @@ export function coachChatKey(tenantId: string | null) {
   return ["coach-chat", tenantId];
 }
 
-export const CHAT_INVALIDATE = ["planned", "sessions", "weekly", "charts"];
+export const CHAT_INVALIDATE = ["planned", "sessions", "weekly", "charts", "profile", "profile-history", "session-analysis"];
 
 export function useCoachChat(enabled: boolean) {
   const { activeTenantId } = useAuth();
@@ -33,10 +35,10 @@ export function useSendCoachChat() {
   return useMutation<
     CoachChatReply,
     Error,
-    { message: string },
+    { message: string; sessionIds?: string[] },
     { previous?: CoachChat | undefined }
   >({
-    mutationFn: ({ message }) => sendCoachChat(message),
+    mutationFn: ({ message, sessionIds }) => sendCoachChat(message, sessionIds),
     onMutate: async ({ message }) => {
       const key = coachChatKey(activeTenantId);
       await qc.cancelQueries({ queryKey: key });
@@ -72,6 +74,35 @@ export function useSendCoachChat() {
       }
       toast({ type: "error", title: "Error al enviar el mensaje", description: err.message });
     },
+  });
+}
+
+export function useSetCoachProvider() {
+  const qc = useQueryClient();
+  const { activeTenantId } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ mode, configId }: { mode: "configured" | "external"; configId?: string }) => setCoachProvider(mode, configId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: coachChatKey(activeTenantId) });
+      toast({ type: "success", title: "Modelo de IA cambiado" });
+    },
+    onError: (error: Error) => toast({ type: "error", title: "No se pudo cambiar el modelo", description: error.message }),
+  });
+}
+
+export function useImportCoachResponse() {
+  const qc = useQueryClient();
+  const { activeTenantId } = useAuth();
+  const { toast } = useToast();
+  return useMutation({
+    mutationFn: ({ response, sessionIds }: { response: string; sessionIds: string[] }) => importCoachResponse(response, sessionIds),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: coachChatKey(activeTenantId) });
+      for (const key of CHAT_INVALIDATE) void qc.invalidateQueries({ queryKey: [key, activeTenantId] });
+      toast({ type: "success", title: "Respuesta externa importada" });
+    },
+    onError: (error: Error) => toast({ type: "error", title: "No se pudo importar la respuesta", description: error.message }),
   });
 }
 

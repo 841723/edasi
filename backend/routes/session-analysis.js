@@ -1,11 +1,11 @@
 import { getDefaultAiConfig } from "../lib/ai-configs.js";
 import { createJob } from "../lib/jobs.js";
-import { getSessionAnalysis, getSessionAnalysisSummary, listPendingSessionAnalyses, MAX_ANALYSIS_SESSIONS } from "../lib/session-analysis.js";
+import { getSessionAnalysis, getSessionAnalysisSummary, listPendingSessionAnalyses, listSessionAnalyses, MAX_ANALYSIS_SESSIONS } from "../lib/session-analysis.js";
 import { sendJson, canWrite } from "../lib/http.js";
 
 export function register(router) {
   router.get("/api/session-analysis", (c) => {
-    return sendJson(c.res, 200, getSessionAnalysisSummary(c.tenantId));
+    return sendJson(c.res, 200, { ...getSessionAnalysisSummary(c.tenantId), items: listSessionAnalyses(c.tenantId) });
   });
 
   router.post("/api/session-analysis", (c) => {

@@ -23,6 +23,7 @@ import { getFocusSports } from "./meta.js";
 import { getGoals } from "./goals.js";
 import { subDays, subWeeks, format, parseISO, differenceInCalendarDays } from "date-fns";
 import { es } from "date-fns/locale";
+import { getSelectedCompletedSessions } from "./sessions.js";
 
 const MAX_CHAT_RESPONSE_CHARS = 200_000;
 const MAX_CHAT_SESSIONS = 100;
@@ -148,6 +149,10 @@ export function buildChatUserPrompt(message, options = {}) {
   const completedText = completed.length > 0
     ? completed.map(formatCompletedSessionForPrompt).join("\n")
     : "(no hay actividades realizadas en los últimos 30 días)";
+  const selected = options.sessionIds?.length ? getSelectedCompletedSessions(getTenantId(), options.sessionIds) : [];
+  const selectedText = selected.length
+    ? `\nSESIONES SELECCIONADAS POR EL ATLETA PARA ANALIZAR:\n${selected.map((item) => formatCompletedSessionForPrompt(item.session)).join("\n")}\n`
+    : "";
   const profile = getAthleteProfile();
   const profileText =
     profile && Object.keys(profile).length > 0
@@ -202,12 +207,24 @@ ${planText}
 
 ACTIVIDADES REALIZADAS — ÚLTIMOS 30 DÍAS (incluyen las fusionadas con sesiones planificadas y cualquier otra actividad registrada):
 ${completedText}
+${selectedText}
 ${historyText}
 MENSAJE DEL ATLETA:
 ${message}
 
 Responde con el JSON indicado en el system prompt.
 `.trim();
+}
+
+export function buildFullChatPrompt(message, options = {}) {
+  const base = requireRolePrompt("chat");
+  const state = getChatState(getTenantId());
+  const custom = state.chatInstructions ? `\n\nINSTRUCCIONES PERSONALIZADAS DEL ENTRENADOR/ATLETA:\n${state.chatInstructions}` : "";
+  const active = getActivePrompt(getTenantId());
+  const objective = active?.content ? `\n\nOBJETIVO Y FILOSOFÍA DE ENTRENAMIENTO:\n${active.name}\n${active.content}` : "";
+  const systemPrompt = `${base}${custom}${objective}`;
+  const userPrompt = buildChatUserPrompt(message, { ...options, includeHistory: true });
+  return `${systemPrompt}\n\n---\n\n${userPrompt}`;
 }
 
 function formatCoachInstructions(profile) {
@@ -451,8 +468,27 @@ export function applyChatProfileUpdate(tenantId, updatedProfile, { includeVersio
   return includeVersionId ? { updated: true, versionId } : { updated: true };
 }
 
-export async function chatWithCoach({ message, previousResponseId, settings, actor, isCancelled = () => false }) {
+export function applyChatResponse(tenantId, parsed, { includeAssistant = true } = {}) {
+  if (!parsed.reply) throw new Error("La respuesta del chat no contiene un reply válido");
+  if (parsed.modified_sessions) validateChatSessions(parsed.sessions);
+  let profileUpdated = false;
+  let profileVersionId = null;
+  if (parsed.modified_profile && isMeaningful(parsed.updated_profile)) {
+    const result = applyChatProfileUpdate(tenantId, parsed.updated_profile, { includeVersionId: true });
+    profileUpdated = result.updated;
+    profileVersionId = result.versionId ?? null;
+  }
+  let reply = parsed.reply;
+  if (parsed.modified_profile) reply += `\n\nActualización del perfil: ${parsed.profile_change || "He incorporado la información relevante del estado físico y las observaciones deportivas al perfil."}`;
+  let sessionsUpdated = [];
+  if (parsed.modified_sessions) sessionsUpdated = replaceFuturePlannedSessions(parsed.sessions).created;
+  if (includeAssistant) addChatMessage("assistant", reply);
+  return { reply, sessionsUpdated, profileUpdated, profileVersionId };
+}
+
+export async function chatWithCoach({ message, previousResponseId, settings, actor, sessionIds = [], isCancelled = () => false }) {
   const tenantId = getTenantId();
+  const selectedSessions = sessionIds.length ? getSelectedCompletedSessions(tenantId, sessionIds) : [];
   const state = getChatState(tenantId);
   const baseSystemPrompt = requireRolePrompt("chat");
   const systemPrompt = state.chatInstructions
@@ -498,7 +534,7 @@ export async function chatWithCoach({ message, previousResponseId, settings, act
       // previous_interaction_id no válido; opencode perdió la sesión) o el
       // proveedor no puede seguir el hilo: se arranca una interacción nueva
       // enviando TODO el contexto y el historial, sin depender de la sesión.
-      const fullPrompt = buildChatUserPrompt(message, { includeHistory: true });
+      const fullPrompt = buildChatUserPrompt(message, { includeHistory: true, sessionIds });
       ({ text, responseId } = await callAiChat(
         settings,
         { systemPrompt: objectivePrompt, input: fullPrompt, previousResponseId: null },
@@ -511,7 +547,7 @@ export async function chatWithCoach({ message, previousResponseId, settings, act
     // Primera pregunta de la conversación, hilo no soportado o contexto
     // cambiado: se envía el contexto completo actualizado y se arranca un hilo
     // nuevo (el hilo anterior, si existe, tiene contexto desactualizado).
-    const fullPrompt = buildChatUserPrompt(message, { includeHistory: true });
+    const fullPrompt = buildChatUserPrompt(message, { includeHistory: true, sessionIds });
     ({ text, responseId } = await callAiChat(
       settings,
       { systemPrompt: objectivePrompt, input: fullPrompt, previousResponseId: null },
@@ -522,37 +558,6 @@ export async function chatWithCoach({ message, previousResponseId, settings, act
   }
 
   const parsed = parseChatResponse(text);
-  if (!parsed.reply) {
-    throw new Error("La respuesta del chat no contiene un reply válido");
-  }
-  if (parsed.modified_sessions) validateChatSessions(parsed.sessions);
   if (isCancelled()) return { cancelled: true, tenantId };
-
-  let profileUpdated = false;
-  if (parsed.modified_profile && isMeaningful(parsed.updated_profile)) {
-    if (!parsed.profile_change) {
-      throw new Error("La respuesta del chat marca el perfil como modificado, pero no incluye los cambios explicados");
-    }
-    profileUpdated = applyChatProfileUpdate(tenantId, parsed.updated_profile).updated;
-  }
-
-  let reply = parsed.reply;
-  if (parsed.modified_profile && parsed.profile_change) {
-    reply += `\n\nActualización del perfil: ${parsed.profile_change}`;
-  }
-
-  if (isCancelled()) return { cancelled: true, tenantId };
-  addChatMessage("assistant", reply);
-
-  let sessionsUpdated = [];
-  if (parsed.modified_sessions) {
-    if (isCancelled()) return { cancelled: true, tenantId };
-    const replacement = replaceFuturePlannedSessions(parsed.sessions);
-    sessionsUpdated = replacement.created;
-    if (replacement.aborted) {
-      reply += "\n\nNo he podido añadir las sesiones propuestas porque ninguna tiene una fecha válida de hoy en adelante. Se conserva tu planificación actual.";
-    }
-  }
-
-  return { reply, sessionsUpdated, profileUpdated, responseId, tenantId };
+  return { ...applyChatResponse(tenantId, parsed), responseId, tenantId, parsed, sessionIds, selectedSessions };
 }

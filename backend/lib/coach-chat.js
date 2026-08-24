@@ -77,7 +77,7 @@ export function deleteChatMessages(tenantId, ids) {
 export function getChatState(tenantId = getTenantId()) {
   const row = getDb()
     .prepare(
-      "SELECT chat_pending, chat_response_id, chat_context_hash, chat_instructions FROM tenant_settings WHERE tenant_id = ?"
+      "SELECT chat_pending, chat_response_id, chat_context_hash, chat_instructions, chat_external FROM tenant_settings WHERE tenant_id = ?"
     )
     .get(tenantId);
   return {
@@ -85,13 +85,14 @@ export function getChatState(tenantId = getTenantId()) {
     chatResponseId: row?.chat_response_id ?? null,
     chatContextHash: row?.chat_context_hash ?? null,
     chatInstructions: row?.chat_instructions ?? "",
+    chatExternal: Boolean(row?.chat_external),
   };
 }
 
 function upsertSetting(column) {
   const db = getDb();
   return (tenantId, value) => {
-    const bound = column === "chat_pending" ? (value ? 1 : 0) : value;
+    const bound = column === "chat_pending" || column === "chat_external" ? (value ? 1 : 0) : value;
     return db
       .prepare(
         `INSERT INTO tenant_settings (tenant_id, ${column}) VALUES (?, ?)
@@ -105,6 +106,7 @@ export const setChatPending = upsertSetting("chat_pending");
 export const updateChatResponseId = upsertSetting("chat_response_id");
 export const updateChatContextHash = upsertSetting("chat_context_hash");
 export const updateChatInstructions = upsertSetting("chat_instructions");
+export const setChatExternal = upsertSetting("chat_external");
 
 // Libera un chat atascado en "escribiendo" cuando no hay mensaje reciente y
 // devuelve 1 (o 0 si el chat sigue pendiente de forma legítima).

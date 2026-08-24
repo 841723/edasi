@@ -18,7 +18,7 @@ function sessionHash(session) {
 
 function rowsForTenant(tenantId) {
   return getDb().prepare(
-    `SELECT s.id, s.sport, s.start_date_local, s.title, s.name, s.data, a.input_hash, a.status, a.updated_at
+    `SELECT s.id, s.sport, s.start_date_local, s.title, s.name, s.data, a.input_hash, a.status, a.analysis, a.profile_version_id, a.updated_at
      FROM sessions s
      LEFT JOIN session_ai_analyses a ON a.tenant_id = s.tenant_id AND a.session_id = s.id
      WHERE s.tenant_id = ? AND s.kind = 'completed'
@@ -29,6 +29,44 @@ function rowsForTenant(tenantId) {
 function toSession(row) {
   const session = parseData(row.data);
   return { ...session, id: row.id, sport: row.sport, start_date_local: row.start_date_local, title: row.title, name: row.name };
+}
+
+export function getSelectedCompletedSessions(tenantId, sessionIds) {
+  if (!Array.isArray(sessionIds) || sessionIds.length > MAX_ANALYSIS_SESSIONS) {
+    throw new Error(`Puedes seleccionar como máximo ${MAX_ANALYSIS_SESSIONS} sesiones`);
+  }
+  const ids = [...new Set(sessionIds)];
+  if (ids.some((id) => typeof id !== "string" || !id || id.length > 200)) throw new Error("sessionIds no válidos");
+  if (!ids.length) return [];
+  const placeholders = ids.map(() => "?").join(",");
+  const rows = getDb().prepare(
+    `SELECT s.id, s.sport, s.start_date_local, s.title, s.name, s.data, a.input_hash, a.status
+     FROM sessions s LEFT JOIN session_ai_analyses a ON a.tenant_id = s.tenant_id AND a.session_id = s.id
+     WHERE s.tenant_id = ? AND s.kind = 'completed' AND s.id IN (${placeholders})`
+  ).all(tenantId, ...ids);
+  if (rows.length !== ids.length) throw new Error("Una o más sesiones no existen o no están completadas");
+  return ids.map((id) => {
+    const row = rows.find((candidate) => candidate.id === id);
+    const session = toSession(row);
+    return { id, session, inputHash: sessionHash(session), status: row.status ?? null };
+  });
+}
+
+export function markSessionsAnalyzed(tenantId, items, result, profileVersionId = null, provider = "chat", model = null) {
+  for (const item of items ?? []) {
+    const hash = item.inputHash ?? sessionHash(item.session);
+    claimSessionAnalysis(tenantId, item.id, hash, provider, model);
+    completeSessionAnalysis(tenantId, item.id, hash, result, profileVersionId);
+  }
+}
+
+export function listSessionAnalyses(tenantId = getTenantId()) {
+  return rowsForTenant(tenantId).map((row) => {
+    const session = toSession(row);
+    const inputHash = sessionHash(session);
+    const completed = row.input_hash === inputHash && row.status === "completed";
+    return { id: row.id, session, inputHash, status: completed ? "completed" : (row.status ?? "pending"), analysis: row.analysis ? parseData(row.analysis) : null, profileVersionId: row.profile_version_id ?? null, updatedAt: row.updated_at ?? null };
+  });
 }
 
 export function listPendingSessionAnalyses(tenantId = getTenantId(), limit = MAX_ANALYSIS_SESSIONS) {

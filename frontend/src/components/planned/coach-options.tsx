@@ -56,8 +56,8 @@ export function CoachOptions() {
           <ListRow label="Peso (kg)" value={datum(datos, ["datos_personales", "peso_kg"])} />
           <ListRow label="Altura (cm)" value={datum(datos, ["datos_personales", "altura_cm"])} />
           <ListRow label="Fatiga" value={datum(datos, ["estado_fisico", "fatiga"])} />
-          <ListRow label="Carga" value={datum(datos, ["estado_fisico", "carga"])} />
-          <ListRow label="Motivación" value={datum(datos, ["estado_fisico", "motivacion"])} />
+          <ListRow label="Carga" value={datum(datos, ["estado_fisico", "carga_actual"])} />
+          <ListRow label="Lesiones / molestias" value={datum(datos, ["estado_fisico", "lesiones"])} />
         </div>
         <Link
           to={tenantPath(activeTenantId, "/config/general")}

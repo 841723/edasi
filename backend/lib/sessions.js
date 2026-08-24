@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
+import { createHash } from "node:crypto";
 import { differenceInDays, parseISO, startOfWeek } from "date-fns";
 import { getDb } from "./db.js";
 
@@ -127,6 +128,20 @@ export function upsertSession(tenantId, kind, session) {
     now,
     now
   );
+}
+
+export function getSelectedCompletedSessions(tenantId, sessionIds, max = 20) {
+  if (!Array.isArray(sessionIds) || sessionIds.length > max) throw new Error(`Puedes seleccionar como máximo ${max} sesiones`);
+  const ids = [...new Set(sessionIds)];
+  if (ids.some((id) => typeof id !== "string" || !id || id.length > 200)) throw new Error("sessionIds no válidos");
+  if (!ids.length) return [];
+  const rows = getDb().prepare(`SELECT id, sport, start_date_local, title, name, data FROM sessions WHERE tenant_id = ? AND kind = 'completed' AND id IN (${ids.map(() => "?").join(",")})`).all(tenantId, ...ids);
+  if (rows.length !== ids.length) throw new Error("Una o más sesiones no existen o no están completadas");
+  return ids.map((id) => {
+    const row = rows.find((candidate) => candidate.id === id);
+    const session = { ...JSON.parse(row.data), id: row.id, sport: row.sport, start_date_local: row.start_date_local, title: row.title, name: row.name };
+    return { id, session, inputHash: createHash("sha256").update(JSON.stringify(session)).digest("hex") };
+  });
 }
 
 export function upsertExternalSession(tenantId, source, externalId, incoming) {

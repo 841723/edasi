@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Check, Loader2, MessageCircle, Send, Trash2, User, X } from "lucide-react";
+import { Bot, Check, Clipboard, Loader2, MessageCircle, Send, Trash2, User, X } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { formatChatTimestamp } from "@/lib/date-format";
-import { useCoachChat, useSendCoachChat, useCancelCoachChat, useDeleteCoachChatMessages, coachChatKey, CHAT_INVALIDATE } from "@/hooks/use-coach-chat";
+import { useCoachChat, useSendCoachChat, useCancelCoachChat, useDeleteCoachChatMessages, useSetCoachProvider, useImportCoachResponse, coachChatKey, CHAT_INVALIDATE } from "@/hooks/use-coach-chat";
 import { useAuth } from "@/components/auth/auth-context";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useToast } from "@/components/ui/toast";
@@ -12,7 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Markdown } from "@/components/ui/markdown";
 
-export function CoachChat() {
+interface CoachChatProps {
+  selectedSessions: Set<string>;
+}
+
+export function CoachChat({ selectedSessions }: CoachChatProps) {
   const { activeTenantId } = useAuth();
   const permissions = usePermissions();
   const queryClient = useQueryClient();
@@ -21,10 +25,14 @@ export function CoachChat() {
   const sendMutation = useSendCoachChat();
   const cancelMutation = useCancelCoachChat();
   const deleteMutation = useDeleteCoachChatMessages();
+  const providerMutation = useSetCoachProvider();
+  const importMutation = useImportCoachResponse();
   const [draft, setDraft] = useState("");
   const [showLatest, setShowLatest] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState<Set<string>>(new Set());
+  const [externalResponse, setExternalResponse] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -116,8 +124,24 @@ export function CoachChat() {
     if (!message || sendMutation.isPending) return;
 
     shouldStickToBottom.current = true;
-    sendMutation.mutate({ message });
+    sendMutation.mutate({ message, sessionIds: [...selectedSessions] }, {
+      onSuccess: (result) => {
+        if (result.external) setExternalResponse("");
+      },
+    });
     setDraft("");
+  }
+
+  async function copyPrompt() {
+    const prompt = sendMutation.data?.prompt;
+    if (!prompt) return;
+    await navigator.clipboard.writeText(prompt);
+    toast({ type: "success", title: "Prompt copiado" });
+  }
+
+  function importResponse() {
+    if (!externalResponse.trim()) return;
+    importMutation.mutate({ response: externalResponse, sessionIds: [...selectedSessions] }, { onSuccess: () => setShowImport(false) });
   }
 
   function handleCancel() {
@@ -146,9 +170,9 @@ export function CoachChat() {
   }
 
   return (
-    <div className="w-full overflow-hidden rounded-2xl border border-dark-400 bg-dark-200/60 shadow-lg">
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-dark-400 bg-dark-200/60 shadow-lg">
       <div className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
-        <span className="flex items-center gap-2">
+        <span className="flex min-w-0 items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/15">
             <MessageCircle className="h-4 w-4 text-accent-light" />
           </span>
@@ -159,7 +183,19 @@ export function CoachChat() {
             </span>
           </span>
         </span>
-        {permissions.canEdit && (data?.messages.length ?? 0) > 0 && (
+        <div className="flex items-center gap-2">
+          {permissions.canEdit && data && (
+            <select
+              className="input h-8 max-w-44 py-1 text-xs"
+              value={data.providerMode === "external" ? "external" : data.activeConfigId ?? ""}
+              onChange={(event) => providerMutation.mutate(event.target.value === "external" ? { mode: "external" } : { mode: "configured", configId: event.target.value })}
+              aria-label="Proveedor de IA"
+            >
+              {data.configs.map((config) => <option key={config.id} value={config.id}>{config.name} · {config.model ?? config.provider}</option>)}
+              <option value="external">IA externa</option>
+            </select>
+          )}
+          {permissions.canEdit && (data?.messages.length ?? 0) > 0 && (
           <button
             type="button"
             onClick={() => {
@@ -171,10 +207,11 @@ export function CoachChat() {
             <Trash2 className="h-3.5 w-3.5" />
             {selectionMode ? "Cancelar" : "Eliminar mensajes"}
           </button>
-        )}
+          )}
+        </div>
       </div>
 
-      <div className="border-t border-dark-400">
+      <div className="flex min-h-0 flex-1 flex-col border-t border-dark-400">
         {selectionMode && (
           <div className="flex items-center justify-between gap-3 border-b border-dark-400 bg-dark-300/30 px-4 py-2.5 text-xs">
             <span className="text-gray-500">Selecciona las preguntas o respuestas que no quieras conservar para la IA.</span>
@@ -192,7 +229,7 @@ export function CoachChat() {
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="relative max-h-[60vh] min-h-[18rem] space-y-4 overflow-y-auto bg-dark-300/10 p-4 sm:p-6"
+           className="relative min-h-0 flex-1 space-y-4 overflow-y-auto bg-dark-300/10 p-4 sm:p-6"
         >
           {isLoading && (
             <>
@@ -290,8 +327,18 @@ export function CoachChat() {
           )}
         </div>
 
-        {canChat ? (
-          <div className="border-t border-dark-400 p-3 sm:p-4">
+         {canChat ? (
+           <div className="border-t border-dark-400 p-3 sm:p-4">
+             {data?.providerMode === "external" && sendMutation.data?.external && (
+               <div className="mb-3 rounded-xl border border-accent/30 bg-accent/10 p-3 text-xs text-gray-300">
+                 <p className="mb-2 font-medium text-accent-light">La IA externa está esperando tu respuesta</p>
+                 <div className="flex flex-wrap gap-2">
+                   <button type="button" className="btn btn-outline px-2.5 py-1.5 text-xs" onClick={() => void copyPrompt()}><Clipboard className="h-3.5 w-3.5" /> Copiar prompt completo</button>
+                   <button type="button" className="btn btn-primary px-2.5 py-1.5 text-xs" onClick={() => setShowImport(true)}>Pegar respuesta</button>
+                 </div>
+               </div>
+             )}
+             {selectedSessions.size > 0 && <p className="mb-2 text-xs text-accent-light">{selectedSessions.size} entrenamiento{selectedSessions.size === 1 ? "" : "s"} seleccionado{selectedSessions.size === 1 ? "" : "s"} para analizar</p>}
             <div className="flex items-end gap-2">
               <textarea
                 ref={inputRef}
@@ -317,7 +364,6 @@ export function CoachChat() {
                 {sendMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </div>
-            <p className="mt-2 text-[10px] text-gray-600">Enter para enviar · Shift + Enter para saltar de línea</p>
           </div>
         ) : (
           <div className="border-t border-dark-400 px-4 py-3 text-xs text-gray-500">
@@ -327,6 +373,7 @@ export function CoachChat() {
           </div>
         )}
       </div>
+      {showImport && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setShowImport(false)}><div className="card w-full max-w-2xl p-5" onClick={(event) => event.stopPropagation()}><div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Pegar respuesta de la IA externa</h2><button type="button" onClick={() => setShowImport(false)}><X className="h-4 w-4" /></button></div><textarea className="input min-h-64 w-full resize-y font-mono text-xs" value={externalResponse} onChange={(event) => setExternalResponse(event.target.value)} placeholder="Pega aquí el JSON completo de respuesta..." /><button type="button" className="btn btn-primary mt-3 w-full" disabled={!externalResponse.trim() || importMutation.isPending} onClick={importResponse}>{importMutation.isPending ? "Importando..." : "Importar respuesta"}</button></div></div>}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { withTenant } from "./lib/sessions.js";
 import { getDefaultAiConfig } from "./lib/ai-configs.js";
 import { chatWithCoach } from "./lib/trainer.js";
+import { analyzeSessions, markSessionsAnalyzed } from "./lib/session-analysis.js";
 import { setChatPending, updateChatResponseId, addChatMessage } from "./lib/coach-chat.js";
 import { runSync } from "./lib/sync.js";
-import { analyzeSessions } from "./lib/session-analysis.js";
 import { sendPushToUser } from "./lib/push.js";
 import { claimNextJob, cancelJob, finishJob, heartbeatJob, isJobActive, updateJobProgress } from "./lib/jobs.js";
 
@@ -48,12 +48,14 @@ async function processJob(job) {
       const result = await chatWithCoach({
         message: payload.message,
         previousResponseId: payload.previousResponseId ?? null,
+        sessionIds: payload.sessionIds ?? [],
         settings,
         actor,
         isCancelled: () => !isJobActive(job.id, job.lease_id),
       });
       if (result?.cancelled || !isJobActive(job.id, job.lease_id)) return;
       if (result.responseId) updateChatResponseId(job.tenant_id, result.responseId);
+      if (result.selectedSessions?.length) markSessionsAnalyzed(job.tenant_id, result.selectedSessions, { analysis: result.reply, profileChange: result.parsed?.profile_change ?? "" }, result.profileVersionId ?? null);
       setChatPending(job.tenant_id, false);
       finishJob(job.id, job.lease_id, "completed", { result: { reply: result.reply, profileUpdated: result.profileUpdated } });
       await sendPushToUser(job.tenant_id, job.user_id, {

@@ -585,25 +585,36 @@ export interface CoachChat {
   chatPending: boolean;
   chatInstructions: string;
   messages: ChatMessage[];
+  providerMode: "configured" | "external";
+  activeConfigId: string | null;
+  configs: AiConfig[];
 }
 
 export interface CoachChatReply {
   pending: boolean;
   jobId?: string;
+  external?: boolean;
+  prompt?: string;
 }
 
 export interface SessionAnalysisSummary {
   pendingCount: number;
   completedCount: number;
   latest: SessionAnalysisItem[];
+  items: SessionAnalysisItem[];
 }
 
 export interface SessionAnalysisItem {
-  session_id: string;
+  id?: string;
+  session?: Record<string, unknown>;
+  inputHash?: string;
+  session_id?: string;
   analysis: { analysis?: string; profileChange?: string } | null;
+  profileVersionId?: string | null;
   profile_version_id?: string | null;
-  status: "running" | "completed" | "failed";
-  updated_at: string;
+  updatedAt?: string | null;
+  updated_at?: string;
+  status: "pending" | "running" | "completed" | "failed";
 }
 
 export interface EquipmentItem {
