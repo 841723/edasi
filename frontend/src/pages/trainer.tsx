@@ -86,8 +86,8 @@ export function TrainerPage() {
           {showOptionsPanel ? "Ocultar configuración" : "Mostrar configuración"}
         </button>
       </div>
-      <div className={`grid min-h-0 flex-1 grid-rows-1 items-stretch gap-5 ${showTrainingPanel && showOptionsPanel ? "xl:grid-cols-[minmax(15rem,25rem)_minmax(0,1fr)_minmax(15rem,25rem)]" : showTrainingPanel ? "xl:grid-cols-[minmax(15rem,25rem)_minmax(0,1fr)]" : showOptionsPanel ? "xl:grid-cols-[minmax(0,1fr)_minmax(15rem,25rem)]" : "xl:grid-cols-1"}`}>
-          {showTrainingPanel && <div className="min-h-0 min-w-0 space-y-3 overflow-x-hidden overflow-y-auto">
+      <div className={`grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] items-stretch gap-5 ${showTrainingPanel && showOptionsPanel ? "xl:grid-cols-[minmax(15rem,25rem)_minmax(0,1fr)_minmax(15rem,25rem)]" : showTrainingPanel ? "xl:grid-cols-[minmax(15rem,25rem)_minmax(0,1fr)]" : showOptionsPanel ? "xl:grid-cols-[minmax(0,1fr)_minmax(15rem,25rem)]" : "xl:grid-cols-1"}`}>
+           {showTrainingPanel && <div className="hidden min-h-0 min-w-0 space-y-3 overflow-x-hidden overflow-y-auto xl:block">
            <TrainingTabs active={trainingTab} setActive={setTrainingTab} />
            {trainingTab === "planned" && <PlannedSessions
             sessions={pendingSessions}
@@ -122,11 +122,11 @@ export function TrainerPage() {
         </div>
         }
 
-         <div className="h-full min-h-0 min-w-0">
+          <div className="h-full min-h-0 min-w-0">
            <CoachChat selectedSessions={selectedSessions} />
         </div>
 
-         {showOptionsPanel && <div className="min-h-0 min-w-0 overflow-y-auto">
+          {showOptionsPanel && <div className="hidden min-h-0 min-w-0 overflow-y-auto xl:block">
           <CoachOptions />
         </div>}
       </div>

@@ -106,7 +106,7 @@ export function SessionDetailPage() {
   }
 
   return (
-    <div className="animate-fade-in max-w-3xl mx-auto">
+    <div className="animate-fade-in mx-auto w-full max-w-6xl">
       <div className="flex flex-wrap items-center gap-2 mb-6">
         <button
           onClick={() => navigate(backTo)}
@@ -191,7 +191,7 @@ export function SessionDetailPage() {
       {/* Estadísticas principales */}
       <div className="card p-5 mb-4">
         <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">Estadísticas</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           <InfoItem label="Fecha" value={formatFullDate(session.start_date_local)} />
           <InfoItem label="Hora" value={format(parseISO(session.start_date_local), "HH:mm")} />
           <InfoItem label="Deporte" value={label} />
@@ -447,7 +447,7 @@ function SegStat({ label, value }: { label: string; value: string }) {
 
 function LoadingSkeleton() {
   return (
-    <div className="animate-fade-in max-w-3xl mx-auto">
+    <div className="animate-fade-in mx-auto w-full max-w-6xl">
       <Skeleton className="h-4 w-20 mb-6" />
       <Skeleton className="h-8 w-64 mb-2" />
       <Skeleton className="h-4 w-48 mb-6" />

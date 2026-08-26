@@ -171,7 +171,7 @@ export function CoachChat({ selectedSessions }: CoachChatProps) {
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-dark-400 bg-dark-200/60 shadow-lg">
-      <div className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+      <div className="flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 text-left">
         <span className="flex min-w-0 items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-accent/15">
             <MessageCircle className="h-4 w-4 text-accent-light" />
@@ -183,10 +183,10 @@ export function CoachChat({ selectedSessions }: CoachChatProps) {
             </span>
           </span>
         </span>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
           {permissions.canEdit && data && (
             <select
-              className="input h-8 max-w-44 py-1 text-xs"
+              className="input h-10 min-w-0 flex-1 py-1 text-xs sm:h-8 sm:w-44 sm:flex-none"
               value={data.providerMode === "external" ? "external" : data.activeConfigId ?? ""}
               onChange={(event) => providerMutation.mutate(event.target.value === "external" ? { mode: "external" } : { mode: "configured", configId: event.target.value })}
               aria-label="Proveedor de IA"
@@ -328,7 +328,7 @@ export function CoachChat({ selectedSessions }: CoachChatProps) {
         </div>
 
          {canChat ? (
-           <div className="border-t border-dark-400 p-3 sm:p-4">
+           <div className="shrink-0 border-t border-dark-400 p-3 sm:p-4">
              {data?.providerMode === "external" && data.chatPending && (sendMutation.data?.external || data.externalPrompt) && (
                <div className="mb-3 rounded-xl border border-accent/30 bg-accent/10 p-3 text-xs text-gray-300">
                  <p className="mb-2 font-medium text-accent-light">La IA externa está esperando tu respuesta</p>
