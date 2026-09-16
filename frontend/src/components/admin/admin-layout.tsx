@@ -29,7 +29,7 @@ export function AdminLayout() {
       <div>
         <h1 className="text-2xl font-bold">Administración</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Proveedores de IA disponibles, catálogo de modelos de opencode y gestión de tenants.
+          Proveedores de IA disponibles y gestión de tenants.
         </p>
       </div>
 

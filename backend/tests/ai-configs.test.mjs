@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-process.env.DB_PATH = `/tmp/opencode/e2e/test-${randomUUID()}.db`;
+process.env.DB_PATH = `/tmp/athlete-tests/e2e/test-${randomUUID()}.db`;
 
 const { getDb } = await import("../lib/db.js");
 const { migrate } = await import("../lib/migrate.js");

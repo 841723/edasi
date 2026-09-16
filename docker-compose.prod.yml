@@ -7,22 +7,12 @@ services:
       - ./data:/data
     restart: unless-stopped
 
-  # Instancia local de opencode (proveedor de IA), solo red interna.
-  opencode:
-    build:
-      context: .
-      dockerfile: docker/opencode.Dockerfile
-    restart: unless-stopped
-    volumes:
-      - opencode_auth:/root/.local/share/opencode
-
   backend:
     build:
       context: .
       dockerfile: Dockerfile.prod
     depends_on:
       - database
-      - opencode
     volumes:
       # Base de datos SQLite (compartida con el servicio database; persiste en el host)
       - ./data:/app/data
@@ -32,7 +22,6 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - OPENCODE_BASE_URL=http://opencode:4096
     restart: unless-stopped
 
   # Sirve el frontend compilado y proxya /api al backend (mismo origen).
@@ -48,4 +37,3 @@ services:
 
 volumes:
   garmin_tokens:
-  opencode_auth:

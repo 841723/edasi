@@ -2,12 +2,10 @@
 node_modules
 frontend/node_modules
 frontend/dist
-.opencode
 .agents
 data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
 data/athlete-profile.json
-opencode.json
 skills-lock.json

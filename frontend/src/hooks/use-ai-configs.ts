@@ -3,11 +3,9 @@ import type {
   AiConfig,
   AiConfigPayload,
   AiConfigsResponse,
-  OpencodeModelInfo,
 } from "@/types/session";
 import {
   fetchAiConfigs,
-  fetchOpencodeModels,
   createAiConfig,
   updateAiConfig,
   deleteAiConfig,
@@ -25,22 +23,6 @@ export function useAiConfigs() {
     enabled: !!activeTenantId,
   });
 }
-
-export function useOpencodeModels(opts?: { configId?: string | null; baseUrl?: string; enabled?: boolean }) {
-  const { activeTenantId } = useAuth();
-  return useQuery({
-    queryKey: ["ai-configs", activeTenantId, "opencode-models", opts?.configId ?? "new", opts?.baseUrl ?? ""],
-    queryFn: () =>
-      fetchOpencodeModels({
-        configId: opts?.configId ?? undefined,
-        baseUrl: opts?.baseUrl || undefined,
-      }),
-    enabled: opts?.enabled !== false && !!activeTenantId,
-    retry: 1,
-  });
-}
-
-export type { OpencodeModelInfo };
 
 export function useAiConfig(configId?: string | null) {
   const { data } = useAiConfigs();

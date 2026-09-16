@@ -311,31 +311,6 @@ CREATE TABLE IF NOT EXISTS global_settings (
   updated_at TEXT NOT NULL
 );
 
--- Catálogo global de modelos de opencode gestionado por el administrador.
--- El precio guardado (si existe) sobreescribe el que expone la instancia.
-CREATE TABLE IF NOT EXISTS opencode_models (
-  model_id TEXT PRIMARY KEY,
-  name TEXT,
-  provider_id TEXT,
-  enabled INTEGER NOT NULL DEFAULT 0,
-  input_price REAL,
-  output_price REAL,
-  updated_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS ai_model_catalog (
-  provider TEXT NOT NULL,
-  model_id TEXT NOT NULL,
-  provider_id TEXT,
-  name TEXT,
-  enabled INTEGER NOT NULL DEFAULT 0,
-  input_price REAL,
-  output_price REAL,
-  currency TEXT NOT NULL DEFAULT 'EUR',
-  updated_at TEXT NOT NULL,
-  PRIMARY KEY (provider, model_id)
-);
-
 -- Suscripciones Web Push por tenant y usuario/dispositivo.
 CREATE TABLE IF NOT EXISTS push_subscriptions (
   id TEXT PRIMARY KEY,
