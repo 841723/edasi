@@ -10,9 +10,7 @@ import {
   propagateDefaultPrompts,
 } from "../lib/ai-prompts.js";
 import { PROVIDER_LIST } from "../lib/providers.js";
-import { getGlobalSettings, updateGlobalSettings, getOpencodeBaseUrl, isProviderEnabled } from "../lib/global-settings.js";
-import { listModels, getAuthStatus, connectAuth } from "../lib/opencode.js";
-import { getCatalogModel, mergeModelsWithCatalog, upsertOpencodeModel, deleteOpencodeModel } from "../lib/opencode-catalog.js";
+import { getGlobalSettings, updateGlobalSettings, isProviderEnabled } from "../lib/global-settings.js";
 import { createAthlete } from "../lib/athletes.js";
 import {
   listMembers,
@@ -142,7 +140,6 @@ export function registerAdmin(router) {
     const body = await readBody(c.req);
     const global = updateGlobalSettings({
       enabledProviders: body?.enabledProviders,
-      opencodeBaseUrl: body?.opencodeBaseUrl,
     });
     return sendJson(c.res, 200, {
       ...global,
@@ -151,75 +148,6 @@ export function registerAdmin(router) {
         enabled: isProviderEnabled(p.id),
       })),
     });
-  });
-
-  router.get("/api/admin/opencode/models", async (c) => {
-    gate(c);
-    try {
-      const models = await listModels(getOpencodeBaseUrl());
-      for (const model of models) {
-        if (!getCatalogModel(model.id, "opencode")) {
-          upsertOpencodeModel({
-            modelId: model.id,
-            name: model.name,
-            providerId: model.providerID,
-            enabled: false,
-            inputPrice: null,
-            outputPrice: null,
-          });
-        }
-      }
-      return sendJson(c.res, 200, {
-        baseUrl: getOpencodeBaseUrl(),
-        models: mergeModelsWithCatalog(models),
-      });
-    } catch (err) {
-      return sendJson(c.res, 200, { baseUrl: getOpencodeBaseUrl(), models: [], error: err.message });
-    }
-  });
-
-  router.get("/api/admin/opencode/auth", async (c) => {
-    gate(c);
-    try {
-      return sendJson(c.res, 200, { baseUrl: getOpencodeBaseUrl(), providers: await getAuthStatus(getOpencodeBaseUrl()) });
-    } catch (err) {
-      return sendJson(c.res, 200, { baseUrl: getOpencodeBaseUrl(), providers: {}, error: err.message });
-    }
-  });
-
-  router.put("/api/admin/opencode/auth/:providerID", async (c) => {
-    gate(c);
-    try {
-      return sendJson(c.res, 200, await connectAuth(getOpencodeBaseUrl(), c.params.providerID, await readBody(c.req)));
-    } catch (err) {
-      return sendJson(c.res, err.status ?? 400, { error: err.message });
-    }
-  });
-
-  router.put("/api/admin/opencode/models/:modelId", async (c) => {
-    gate(c);
-    const body = await readBody(c.req);
-    try {
-      const model = upsertOpencodeModel({
-        modelId: c.params.modelId,
-        name: body?.name,
-        providerId: body?.providerId,
-        enabled: !!body?.enabled,
-        inputPrice: body?.inputPrice,
-        outputPrice: body?.outputPrice,
-        currency: body?.currency,
-      });
-      return sendJson(c.res, 200, model);
-    } catch (err) {
-      return sendJson(c.res, 400, { error: err.message });
-    }
-  });
-
-  router.delete("/api/admin/opencode/models/:modelId", (c) => {
-    gate(c);
-    if (!deleteOpencodeModel(c.params.modelId)) return sendJson(c.res, 404, { error: "Modelo no encontrado" });
-    c.res.writeHead(204);
-    return c.res.end();
   });
 
   router.get("/api/admin/tenants", (c) => {

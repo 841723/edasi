@@ -17,9 +17,7 @@ import type {
   AiSettings,
   AiConfigsResponse,
   AiConfigPayload,
-  OpencodeModelInfo,
   AdminSettings,
-  AdminOpencodeModelsResponse,
   AdminTenant,
   AdminTenantPayload,
   ApiKey,
@@ -261,43 +259,8 @@ export function fetchAdminSettings(): Promise<AdminSettings> {
 
 export function updateAdminSettings(payload: {
   enabledProviders?: string[];
-  opencodeBaseUrl?: string;
 }): Promise<AdminSettings> {
   return send("/admin/settings", "PUT", payload);
-}
-
-export interface OpenCodeAuthStatus {
-  baseUrl: string;
-  providers: Record<string, { providerID: string; connected: boolean }>;
-  error?: string;
-}
-
-export function fetchOpenCodeAuth(): Promise<OpenCodeAuthStatus> {
-  return get("/admin/opencode/auth");
-}
-
-export function connectOpenCode(providerId: string, apiKey: string): Promise<{ providerID: string; connected: boolean }> {
-  return send(`/admin/opencode/auth/${encodeURIComponent(providerId)}`, "PUT", {
-    type: "api",
-    key: apiKey,
-  });
-}
-
-export function fetchAdminOpencodeModels(): Promise<AdminOpencodeModelsResponse> {
-  return get("/admin/opencode/models");
-}
-
-export function updateAdminOpencodeModel(
-  modelId: string,
-  payload: {
-    name?: string;
-    providerId?: string;
-    enabled: boolean;
-    inputPrice?: number | null;
-    outputPrice?: number | null;
-  }
-): Promise<{ ok: boolean }> {
-  return send(`/admin/opencode/models/${encodeURIComponent(modelId)}`, "PUT", payload);
 }
 
 export function fetchAdminTenants(): Promise<AdminTenant[]> {
@@ -388,19 +351,7 @@ export function testAiConfig(configId: string): Promise<{ ok: boolean }> {
   return send(`/ai-configs/${encodeURIComponent(configId)}/test`, "POST");
 }
 
-export interface OpencodeModelsResponse {
-  provider: string;
-  models: OpencodeModelInfo[];
-  error?: string;
-}
 
-export function fetchOpencodeModels(opts?: { configId?: string; baseUrl?: string }): Promise<OpencodeModelsResponse> {
-  const params = new URLSearchParams();
-  if (opts?.configId) params.set("configId", opts.configId);
-  if (opts?.baseUrl) params.set("baseUrl", opts.baseUrl);
-  const qs = params.toString();
-  return get(`/ai-configs/models${qs ? `?${qs}` : ""}`);
-}
 
 export function fetchApiKeys(): Promise<ApiKey[]> {
   return get("/api-keys");

@@ -7,18 +7,6 @@ services:
       - ./data:/data
     restart: unless-stopped
 
-  # Instancia local de opencode (proveedor de IA) expuesta en 127.0.0.1:4096.
-  opencode:
-    build:
-      context: .
-      dockerfile: docker/opencode.Dockerfile
-    ports:
-      - "4096:4096"
-    command: ["opencode", "serve", "--port", "4096", "--hostname", "0.0.0.0", "--print-logs"]
-    volumes:
-      - opencode_auth:/root/.local/share/opencode
-    restart: unless-stopped
-
   backend:
     build:
       context: .
@@ -27,7 +15,6 @@ services:
       - "4000:4000"
     depends_on:
       - database
-      - opencode
     volumes:
       # Hot reload: mount source code into container
       - ./backend:/app/backend
@@ -43,7 +30,6 @@ services:
       - .env
     environment:
       - NODE_ENV=development
-      - OPENCODE_BASE_URL=http://opencode:4096
     # npm ci al arrancar: garantiza que node_modules (volumen anónimo) coincida
     # siempre con package.json/package-lock, p. ej. al añadir una dependencia
     # nueva como web-push sin necesidad de reconstruir la imagen.
@@ -72,4 +58,3 @@ services:
 
 volumes:
   garmin_tokens:
-  opencode_auth:

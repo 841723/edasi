@@ -2,10 +2,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   fetchAdminSettings,
   updateAdminSettings,
-  fetchOpenCodeAuth,
-  connectOpenCode,
-  fetchAdminOpencodeModels,
-  updateAdminOpencodeModel,
   fetchAdminTenants,
   createAdminTenant,
   adminRenameTenant,
@@ -22,17 +18,6 @@ import { invalidateMany } from "@/lib/invalidate";
 
 export function useAdminSettings() {
   return useQuery({ queryKey: ["admin", "settings"], queryFn: fetchAdminSettings });
-}
-
-export function useOpenCodeAuth() {
-  return useQuery({ queryKey: ["admin", "opencode-auth"], queryFn: fetchOpenCodeAuth });
-}
-
-export function useAdminOpencodeModels() {
-  return useQuery({
-    queryKey: ["admin", "opencode-models"],
-    queryFn: fetchAdminOpencodeModels,
-  });
 }
 
 export function useAdminTenants() {
@@ -61,15 +46,6 @@ export function useAdminMutations() {
     settings: useMutation({
       mutationFn: updateAdminSettings,
       onSuccess: invalidateSettings,
-    }),
-    connectOpenCode: useMutation({
-      mutationFn: ({ providerId, apiKey }: { providerId: string; apiKey: string }) => connectOpenCode(providerId, apiKey),
-      onSuccess: () => invalidateMany(qc, ["admin", "opencode-auth", "admin", "opencode-models"]),
-    }),
-    model: useMutation({
-      mutationFn: ({ modelId, payload }: { modelId: string; payload: Parameters<typeof updateAdminOpencodeModel>[1] }) =>
-        updateAdminOpencodeModel(modelId, payload),
-      onSuccess: () => invalidateMany(qc, ["admin", "opencode-models"]),
     }),
     createTenant: useMutation({
       mutationFn: createAdminTenant,

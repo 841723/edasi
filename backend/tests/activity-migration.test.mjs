@@ -4,8 +4,9 @@ import { DatabaseSync } from "node:sqlite";
 import fs from "node:fs";
 import { randomUUID } from "node:crypto";
 
-const dbPath = `/tmp/opencode/activity-migration-${randomUUID()}.db`;
+const dbPath = `/tmp/athlete-tests/activity-migration-${randomUUID()}.db`;
 process.env.DB_PATH = dbPath;
+fs.mkdirSync("/tmp/athlete-tests", { recursive: true });
 const oldDb = new DatabaseSync(dbPath);
 oldDb.exec(`
   CREATE TABLE tenants (id TEXT PRIMARY KEY, name TEXT, slug TEXT, created_at TEXT);

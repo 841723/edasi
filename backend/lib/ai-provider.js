@@ -1,15 +1,12 @@
 import { logAiRequest } from "./ai-logs.js";
-import { listModels, runConversation } from "./opencode.js";
 import { getProvider, getProviderById, getProviderName, PROVIDER_LIST, CHAT_PROVIDERS, DEFAULT_PRICING } from "./providers.js";
-import { getEnabledProviders, isProviderEnabled, getOpencodeBaseUrl } from "./global-settings.js";
-import { getCatalogModel, effectivePrice } from "./opencode-catalog.js";
+import { getEnabledProviders, isProviderEnabled } from "./global-settings.js";
 
 export { getProvider, getProviderById, getProviderName, DEFAULT_PRICING };
 
 // Tiempo máximo de espera de las llamadas HTTP directas a los proveedores de
-// chat/plan (gemini y compatibles con OpenAI). opencode gestiona su propio
-// timeout de espera. Si el proveedor no responde, abortamos para no dejar el
-// chat del plan atascado en "escribiendo" indefinidamente.
+// chat/plan (gemini y compatibles con OpenAI). Si el proveedor no responde,
+// abortamos para no dejar el chat del plan atascado en "escribiendo"
 const CHAT_TIMEOUT_MS = 5 * 60 * 1000;
 const PLAN_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -98,81 +95,6 @@ function logFields(actor) {
   };
 }
 
-// opencode no es un endpoint de chat simple: se crea una sesión, se envía el
-// prompt y se espera a que el agente quede idle. La instancia es local y no
-// necesita API key (el auth básico opcional va en la userinfo de base_url).
-async function callOpencode(settings, { systemPrompt, input, sessionId = null }, actor) {
-  const providerId = "opencode";
-  const baseUrl = getOpencodeBaseUrl();
-  const model = settings?.model;
-  if (!model) throw new Error("No hay modelo configurado para el proveedor opencode");
-  const catalog = getCatalogModel(model, "opencode");
-  if (!catalog?.enabled || catalog.input_price == null || catalog.output_price == null) {
-    throw new Error(`El modelo "${model}" no está disponible para este tenant`);
-  }
-
-  const started = Date.now();
-  let text = null;
-  let ok = true;
-  let status = null;
-  let errorMessage = null;
-  let responseId = null;
-  let inputTokens = null;
-  let outputTokens = null;
-  let cost = null;
-  let catalogPrice = null;
-
-  try {
-    const models = await listModels(baseUrl);
-    const info = models.find((m) => m.id === model) ?? null;
-    if (!info) {
-      throw new Error(`El modelo "${model}" no está disponible en la instancia de opencode`);
-    }
-    // El precio efectivo lo define el catálogo global del administrador
-    // (precio del catálogo si existe; si no, el que expone la instancia).
-    const price = effectivePrice(model, {
-      input_per_mtok: info.input_per_mtok,
-      output_per_mtok: info.output_per_mtok,
-    });
-    catalogPrice = price;
-
-    const result = await runConversation({
-      baseUrl,
-      modelId: model,
-      modelProviderId: info.providerID,
-      systemPrompt,
-      input,
-      sessionId,
-    });
-    text = result.text;
-    responseId = result.responseId;
-    ({ inputTokens, outputTokens, cost } = computeCost(providerId, result.usage, price ? { opencode: price } : null));
-    return { text, responseId };
-  } catch (err) {
-    ok = false;
-    errorMessage = err.message;
-    throw err;
-  } finally {
-    await logAiRequest({
-      ...logFields(actor),
-      operationType: "chat",
-      provider: providerId,
-      model,
-      endpoint: baseUrl,
-      apiKey: "",
-      input: `${systemPrompt}\n\n---\n\n${input}`,
-      response: ok ? text : errorMessage,
-      status,
-      ok,
-      durationMs: Date.now() - started,
-      inputTokens,
-      outputTokens,
-      cost,
-      currency: catalog.currency,
-    });
-  }
-}
-
 export async function callAiChat(settings, { systemPrompt, input, previousResponseId = null }, actor = null) {
   const providerId = settings?.provider ?? "gemini";
   if (!isProviderEnabled(providerId)) {
@@ -180,10 +102,6 @@ export async function callAiChat(settings, { systemPrompt, input, previousRespon
   }
   const base = getProvider(providerId);
   if (!base) throw new Error(`Proveedor de IA desconocido: ${providerId}`);
-
-  if (providerId === "opencode") {
-    return callOpencode(settings, { systemPrompt, input, sessionId: previousResponseId ?? null }, actor);
-  }
 
   const isMock = providerId === "mock";
 
@@ -303,11 +221,6 @@ export async function callAi(settings, { systemPrompt, userPrompt }, actor = nul
   }
   const provider = getProvider(providerId);
   if (!provider) throw new Error(`Proveedor de IA desconocido: ${providerId}`);
-
-  if (providerId === "opencode") {
-    const result = await callOpencode(settings, { systemPrompt, input: userPrompt, sessionId: null }, actor);
-    return result.text;
-  }
 
   const isMock = providerId === "mock";
 

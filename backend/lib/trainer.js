@@ -508,10 +508,9 @@ export async function chatWithCoach({ message, previousResponseId, settings, act
   // El contexto completo (perfil, actividades planeadas, actividades recientes)
   // solo se reenvía cuando cambia de verdad: nueva actividad realizada, perfil
   // editado, actividades planeadas modificadas o día nuevo. Si no ha cambiado y
-  // el proveedor mantiene hilo (opencode con sesión por tenanta, gemini con
-  // previous_interaction_id), se reutiliza la interacción anterior enviando
-  // SOLO el mensaje nuevo. El mock no mantiene un hilo real, así que siempre
-  // recibe el contexto completo.
+  // el proveedor mantiene hilo (gemini con previous_interaction_id), se
+  // reutiliza la interacción anterior enviando SOLO el mensaje nuevo. El mock
+  // no mantiene un hilo real, así que siempre recibe el contexto completo.
   const currentHash = computeContextHash();
   const contextChanged = currentHash !== state.chatContextHash;
 
@@ -531,8 +530,8 @@ export async function chatWithCoach({ message, previousResponseId, settings, act
       if (isCancelled()) return { cancelled: true, tenantId };
     } catch (err) {
       // La interacción anterior caducó (gemini devuelve error por un
-      // previous_interaction_id no válido; opencode perdió la sesión) o el
-      // proveedor no puede seguir el hilo: se arranca una interacción nueva
+      // previous_interaction_id no válido) o el proveedor no puede seguir el
+      // hilo: se arranca una interacción nueva
       // enviando TODO el contexto y el historial, sin depender de la sesión.
       const fullPrompt = buildChatUserPrompt(message, { includeHistory: true, sessionIds });
       ({ text, responseId } = await callAiChat(

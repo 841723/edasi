@@ -50,17 +50,10 @@ export const PROVIDERS = {
       return data?.usage ?? null;
     },
   },
-  opencode: {
-    name: "OpenCode",
-    defaultBaseUrl: "http://localhost:4096",
-    defaultModel: null,
-    needsApiKey: false,
-  },
 };
 
 export const PROVIDER_LIST = [
   { id: "gemini", name: "Google Gemini", needsApiKey: true, defaultModel: "gemini-2.0-flash", defaultPricing: { input_per_mtok: 0.1, output_per_mtok: 0.4 } },
-  { id: "opencode", name: "OpenCode", needsApiKey: false, defaultModel: null, defaultPricing: null },
   { id: "mock", name: "Mock (desarrollo)", needsApiKey: false, defaultModel: "mock-1", defaultPricing: { input_per_mtok: 0, output_per_mtok: 0 } },
 ];
 

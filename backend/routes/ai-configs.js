@@ -1,7 +1,4 @@
 import { getProvidersList, getProviderById, callAi } from "../lib/ai-provider.js";
-import { listModels } from "../lib/opencode.js";
-import { mergeModelsWithCatalog } from "../lib/opencode-catalog.js";
-import { getOpencodeBaseUrl } from "../lib/global-settings.js";
 import {
   listAiConfigs,
   getAiConfigWithKey,
@@ -12,32 +9,11 @@ import {
 } from "../lib/ai-configs.js";
 import { sendJson, readBody } from "../lib/http.js";
 
-// Normaliza el payload de una config de IA. Para opencode la URL, el precio,
-// la moneda, la ventana y la API key son del sistema (no editables por el
-// tenant): se fuerzan los valores globales.
 function normalizeConfigBody(body, existing = null) {
   const providerInfo = getProviderById(body?.provider);
   if (!providerInfo) return { error: `Proveedor de IA no soportado: ${body?.provider}` };
   const enabled = getProvidersList().find((p) => p.id === providerInfo.id);
   if (!enabled) return { error: `El proveedor de IA "${providerInfo.id}" está deshabilitado por el administrador` };
-
-  if (providerInfo.id === "opencode") {
-    const model = body?.model;
-    if (!model || typeof model !== "string") return { error: "Selecciona un modelo de opencode" };
-    return {
-      payload: {
-        name: body.name.trim(),
-        provider: "opencode",
-        apiKey: "",
-        model,
-        baseUrl: getOpencodeBaseUrl(),
-        currency: "EUR",
-        chatDurationHours: 24,
-        pricing: null,
-        isDefault: !!body.isDefault,
-      },
-    };
-  }
 
   if (providerInfo.needsApiKey && !body?.apiKey && !existing?.api_key) {
     return { error: "Falta la API key para este proveedor" };
@@ -69,20 +45,6 @@ export function register(router) {
       providers: getProvidersList(),
       maxConfigs: MAX_AI_CONFIGS,
     });
-  });
-
-  router.get("/api/ai-configs/models", async (c) => {
-    if (c.membership?.role !== "athlete") {
-      return sendJson(c.res, 403, { error: "Solo el atleta puede configurar la IA" });
-    }
-    try {
-      const baseUrl = getOpencodeBaseUrl();
-      const models = await listModels(baseUrl, { force: true });
-      const merged = mergeModelsWithCatalog(models);
-      return sendJson(c.res, 200, { provider: "opencode", models: merged });
-    } catch (err) {
-      return sendJson(c.res, 200, { provider: "opencode", models: [], error: err.message });
-    }
   });
 
   router.post("/api/ai-configs", async (c) => {

@@ -6,12 +6,11 @@
 - Node 24+ es obligatorio: el backend usa `node:sqlite`.
 - La BD principal es `data/endurance.db`; no modifiques datos de un tenant salvo que la tarea lo pida explícitamente.
 - `sessions/` contiene JSON legado para la migración inicial; no es origen de datos y no debe modificarse.
-- `opencode.json` carga este archivo como instrucciones del repositorio.
 
 ## Comandos
 
 - Backend: `cd backend && npm ci && npm test`.
-- Test backend concreto: `cd backend && node --test tests/opencode.test.mjs`.
+- Test backend concreto: `cd backend && node --test tests/admin.test.mjs`.
 - Frontend: `cd frontend && npm ci && npm run build`.
 - Frontend dev: `cd frontend && npm run dev` en el puerto `3000`; `/api` se proxifica a `http://localhost:4000` o a `VITE_PROXY_TARGET`.
 - Backend dev: `node backend/server.js --port 4000`.
@@ -61,7 +60,7 @@
 - La limpieza de logs ocurre al arrancar, al listar logs y diariamente; conserva ese comportamiento al cambiar el almacenamiento.
 - Valida límites de semanas, comentarios, prompts y respuestas antes de llamar al proveedor o persistir resultados.
 - Los prompts y planes siempre deben resolverse con `tenant_id`; no aceptes IDs de otro tenant.
-- El chat del plan sigue el hilo del proveedor cuando lo soporta (opencode: sesión por plan en `sessionId`; gemini: `previous_interaction_id`): en turnos encadenados se envía solo el mensaje del atleta. El contexto completo (perfil, plan, historial) se envía únicamente en la primera pregunta o cuando la interacción caduca (se reintenta con `includeHistory: true`); el proveedor `mock` siempre recibe el contexto completo.
+- El chat del plan sigue el hilo del proveedor cuando lo soporta (gemini: `previous_interaction_id`): en turnos encadenados se envía solo el mensaje del atleta. El contexto completo (perfil, plan, historial) se envía únicamente en la primera pregunta o cuando la interacción caduca (se reintenta con `includeHistory: true`); el proveedor `mock` siempre recibe el contexto completo.
 
 ## Cambios Y Verificación
 

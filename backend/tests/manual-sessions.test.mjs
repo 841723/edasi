@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-process.env.DB_PATH = `/tmp/opencode/manual-sessions-${randomUUID()}.db`;
+process.env.DB_PATH = `/tmp/athlete-tests/manual-sessions-${randomUUID()}.db`;
 
 const { getDb } = await import("../lib/db.js");
 const { withTenant, createManualSession } = await import("../lib/sessions.js");

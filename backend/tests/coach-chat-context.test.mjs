@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-process.env.DB_PATH = `/tmp/opencode/coach-chat-context-${randomUUID()}.db`;
+process.env.DB_PATH = `/tmp/athlete-tests/coach-chat-context-${randomUUID()}.db`;
 
 const { getDb } = await import("../lib/db.js");
 const { withTenant, upsertSession, getAthleteProfile, saveAthleteProfile } = await import("../lib/sessions.js");
